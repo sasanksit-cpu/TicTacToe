@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Tic Tac Toe Fun!</title>
+<meta name="description" content="A colorful tic tac toe game for kids with fun themes, cute characters, and online play with friends!">
+<meta name="theme-color" content="#ff5fa2">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Tic Tac Toe Fun">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js" defer></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'Comic Sans MS','Chalkboard SE','Segoe Print',cursive;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:14px;gap:12px;user-select:none;-webkit-user-select:none;
+    background:var(--bg);color:var(--ink);transition:background .5s;
+  }
+  body[data-theme="candy"]{--bg:linear-gradient(160deg,#ffd6ec,#e7c6ff);--ink:#6d2077;--card:#ffffffcc;--accent:#ff5fa2;--accent2:#9b5fff;--cell:#fff}
+  body[data-theme="ocean"]{--bg:linear-gradient(160deg,#aee6ff,#7fd3c8);--ink:#0b4f6c;--card:#ffffffcc;--accent:#0aa2c0;--accent2:#0b6e4f;--cell:#f2fcff}
+  body[data-theme="space"]{--bg:linear-gradient(160deg,#1b1b3a,#3d2c8d);--ink:#f5f0ff;--card:#2a2a55cc;--accent:#ffd166;--accent2:#8be9fd;--cell:#353570}
+  body[data-theme="jungle"]{--bg:linear-gradient(160deg,#c8f7c5,#8fd694);--ink:#1e4620;--card:#ffffffcc;--accent:#2e8b57;--accent2:#c96f0a;--cell:#f4fff2}
+  body[data-theme="sunshine"]{--bg:linear-gradient(160deg,#ffe98a,#ffc36b);--ink:#7a4a00;--card:#fffdf3cc;--accent:#ff9f1c;--accent2:#e05780;--cell:#fffaf0}
+
+  h1{font-size:clamp(1.4rem,6vw,2rem);text-align:center}
+  .screen{display:none;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:420px}
+  .screen.show{display:flex}
+  .card{background:var(--card);border-radius:24px;padding:20px;width:100%;
+    box-shadow:0 8px 24px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:14px;align-items:center}
+
+  .big-emoji{font-size:3.2rem;animation:bob 2s ease-in-out infinite}
+  @keyframes bob{50%{transform:translateY(-8px)}}
+  input[type=text]{
+    font-family:inherit;font-size:1.2rem;text-align:center;width:100%;
+    padding:12px;border:3px solid var(--accent);border-radius:16px;background:var(--cell);color:var(--ink);
+  }
+  input[type=text]:focus{outline:3px dashed var(--accent2);outline-offset:3px}
+  .btn{
+    font-family:inherit;font-size:1.15rem;font-weight:bold;color:#fff;
+    background:var(--accent);border:none;border-radius:18px;padding:12px 28px;cursor:pointer;
+    box-shadow:0 4px 0 rgba(0,0,0,.2);transition:transform .1s;
+  }
+  .btn:active{transform:translateY(3px);box-shadow:none}
+  .btn.small{font-size:.95rem;padding:8px 16px}
+  .btn.ghost{background:transparent;color:var(--ink);box-shadow:none;border:2px dashed var(--accent)}
+  .btn.alt{background:var(--accent2)}
+
+  .picker-label{font-size:1rem;opacity:.85}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .chip{
+    font-family:inherit;font-size:1rem;padding:8px 12px;border-radius:14px;cursor:pointer;
+    border:3px solid transparent;background:var(--cell);color:var(--ink);transition:transform .15s;
+  }
+  .chip:active{transform:scale(.92)}
+  .chip.on{border-color:var(--accent);transform:scale(1.05)}
+  .chip .duo{font-size:1.3rem}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:420px}
+  .hello{font-size:1.05rem}
+  .scores{display:flex;gap:16px;font-size:1rem;background:var(--card);padding:8px 18px;border-radius:16px}
+  .scores b{font-size:1.2rem}
+  .board{
+    display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);gap:10px;
+    width:min(86vw,340px);height:min(86vw,340px);
+  }
+  .board button{
+    font-size:clamp(2.2rem,12vw,3.4rem);background:var(--cell);border:none;border-radius:20px;
+    cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.15);transition:transform .12s;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .board button:active{transform:scale(.94)}
+  .board button:focus-visible{outline:3px dashed var(--accent2);outline-offset:2px}
+  .board button.pop span{display:inline-block;animation:pop .35s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes pop{0%{transform:scale(0) rotate(-20deg)}100%{transform:scale(1) rotate(0)}}
+  .board button.winner{animation:dance .5s ease-in-out 4;background:var(--accent)}
+  @keyframes dance{25%{transform:rotate(-8deg) scale(1.12)}75%{transform:rotate(8deg) scale(1.12)}}
+
+  .status{min-height:1.8em;font-size:1.2rem;text-align:center}
+  .status.big{font-size:1.5rem;animation:bounceIn .5s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes bounceIn{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+
+  /* online panel */
+  .room-code{
+    font-size:2rem;letter-spacing:.35em;font-weight:bold;color:var(--accent);
+    background:var(--cell);padding:10px 6px 10px 16px;border-radius:16px;border:3px dashed var(--accent2);
+  }
+  .waiting{font-size:1rem;opacity:.8;animation:blink 1.4s infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .online-badge{font-size:.9rem;background:var(--cell);padding:6px 12px;border-radius:12px}
+  .hidden{display:none !important}
+
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+  .cf{position:absolute;top:-20px;font-size:1.4rem;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
+
+  @media (prefers-reduced-motion:reduce){
+    .big-emoji,.board button.winner,.cf,.waiting{animation:none}
+    .cf{display:none}
+  }
+</style>
+</head>
+<body data-theme="candy">
+
+<!-- ========== LOGIN SCREEN ========== -->
+<div class="screen show" id="screen-login">
+  <div class="card">
+    <div class="big-emoji">🎈</div>
+    <h1>Tic Tac Toe Fun!</h1>
+    <div class="picker-label">What's your name?</div>
+    <input type="text" id="name-input" maxlength="14" placeholder="Type your name…" autocomplete="off">
+    <div class="picker-label">Pick your favorite look 🎨</div>
+    <div class="chips" id="theme-chips"></div>
+    <div class="picker-label">Choose your team ✨</div>
+    <div class="chips" id="combo-chips"></div>
+    <button class="btn" id="play-btn">Let's Play! 🚀</button>
+  </div>
+</div>
+
+<!-- ========== ONLINE LOBBY ========== -->
+<div class="screen" id="screen-online">
+  <div class="card" id="online-menu">
+    <div class="big-emoji">🌐</div>
+    <h1>Play with a Friend!</h1>
+    <button class="btn" id="create-room-btn">🏠 Create a Room</button>
+    <div class="picker-label">— or join a friend —</div>
+    <input type="text" id="join-code-input" maxlength="5" placeholder="Enter room code" autocomplete="off" style="text-transform:uppercase">
+    <button class="btn alt" id="join-room-btn">🚪 Join Room</button>
+    <button class="btn small ghost" id="online-back-btn">⬅ Back</button>
+  </div>
+  <div class="card hidden" id="online-wait">
+    <div class="big-emoji">📮</div>
+    <div class="picker-label">Your room code:</div>
+    <div class="room-code" id="room-code-display">·····</div>
+    <button class="btn small" id="share-btn">📤 Share Invite Link</button>
+    <div class="waiting" id="wait-msg">Waiting for your friend to join…</div>
+    <button class="btn small ghost" id="cancel-room-btn">✖ Cancel</button>
+  </div>
+</div>
+
+<!-- ========== GAME SCREEN ========== -->
+<div class="screen" id="screen-game">
+  <div class="topbar">
+    <div class="hello" id="hello"></div>
+    <button class="btn small ghost" id="back-btn">🎨 Change</button>
+  </div>
+  <div class="online-badge hidden" id="online-badge"></div>
+  <div class="scores">
+    <span id="lbl-p1">🙂 <b id="score-x">0</b></span>
+    <span>🤝 <b id="score-d">0</b></span>
+    <span id="lbl-p2">🤖 <b id="score-o">0</b></span>
+  </div>
+  <div class="modes chips" id="mode-chips">
+    <button class="chip on" id="mode-cpu">🤖 Computer</button>
+    <button class="chip" id="mode-2p">👫 2 Players</button>
+    <button class="chip" id="mode-online">🌐 Online</button>
+  </div>
+  <div class="board" id="board"></div>
+  <div class="status" id="status"></div>
+</div>
+
+<div id="confetti"></div>
+
+<script>
+(function(){
+  /* ---------- data ---------- */
+  const THEMES=[
+    {id:'candy',label:'🍭 Candy'},
+    {id:'ocean',label:'🌊 Ocean'},
+    {id:'space',label:'🚀 Space'},
+    {id:'jungle',label:'🌴 Jungle'},
+    {id:'sunshine',label:'🌞 Sunny'},
+  ];
+  const COMBOS=[
+    {id:'royal',  x:'🤴', o:'👸', label:'Prince & Princess'},
+    {id:'pets',   x:'🐶', o:'🐱', label:'Puppy & Kitty'},
+    {id:'sky',    x:'🌞', o:'🌙', label:'Sun & Moon'},
+    {id:'space',  x:'🤖', o:'👽', label:'Robot & Alien'},
+    {id:'dino',   x:'🦕', o:'🐉', label:'Dino & Dragon'},
+    {id:'sweet',  x:'🍦', o:'🧁', label:'Ice Cream & Cupcake'},
+    {id:'classic',x:'❌', o:'⭕', label:'Classic X & O'},
+  ];
+  const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+  let combo=COMBOS[0], playerName='Friend';
+  let board, turn, over, mode='cpu', scores={X:0,O:0,D:0}, starter='O';
+  let autoTimer=null;
+  /* online state */
+  let peer=null, conn=null, myMark=null, isHost=false, oppName='Friend', pendingJoin=null;
+
+  const $=id=>document.getElementById(id);
+
+  /* ---------- login screen ---------- */
+  const themeChips=$('theme-chips');
+  THEMES.forEach((t,i)=>{
+    const c=document.createElement('button');
+    c.className='chip'+(i===0?' on':'');
+    c.textContent=t.label;
+    c.addEventListener('click',()=>{
+      document.body.dataset.theme=t.id;
+      themeChips.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+      c.classList.add('on');
+    });
+    themeChips.appendChild(c);
+  });
+
+  const comboChips=$('combo-chips');
+  COMBOS.forEach((cb,i)=>{
+    const c=document.createElement('button');
+    c.className='chip'+(i===0?' on':'');
+    c.innerHTML=`<span class="duo">${cb.x}${cb.o}</span>`;
+    c.title=cb.label;
+    c.setAttribute('aria-label',cb.label);
+    c.addEventListener('click',()=>{
+      combo=cb;
+      comboChips.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+      c.classList.add('on');
+    });
+    comboChips.appendChild(c);
+  });
+
+  $('play-btn').addEventListener('click',startGame);
+  $('name-input').addEventListener('keydown',e=>{if(e.key==='Enter')startGame()});
+  $('back-btn').addEventListener('click',()=>{
+    clearTimeout(autoTimer);
+    leaveOnline();
+    show('screen-login');
+  });
+
+  function show(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('show'));
+    $(id).classList.add('show');
+  }
+
+  function startGame(){
+    const v=$('name-input').value.trim();
+    playerName=v||'Friend';
+    $('hello').textContent=`Hi, ${playerName}! 👋`;
+    scores={X:0,O:0,D:0};
+    updateLabels();renderScores();
+    starter='O';
+    if(pendingJoin){          // arrived via invite link
+      show('screen-online');
+      $('join-code-input').value=pendingJoin;
+      pendingJoin=null;
+      joinRoom();
+    }else{
+      show('screen-game');
+      setMode('cpu');
+    }
+  }
+
+  function updateLabels(){
+    $('lbl-p1').innerHTML=`${combo.x} <b id="score-x">${scores.X}</b>`;
+    $('lbl-p2').innerHTML=`${combo.o} <b id="score-o">${scores.O}</b>`;
+  }
+  function renderScores(){
+    $('score-x').textContent=scores.X;
+    $('score-o').textContent=scores.O;
+    $('score-d').textContent=scores.D;
+  }
+
+  /* ---------- board ---------- */
+  const boardEl=$('board');
+  const statusEl=$('status');
+  for(let i=0;i<9;i++){
+    const b=document.createElement('button');
+    b.dataset.i=i;
+    b.setAttribute('aria-label','Square '+(i+1));
+    b.addEventListener('click',()=>humanMove(i));
+    boardEl.appendChild(b);
+  }
+  const cells=[...boardEl.children];
+
+  function newRound(forcedStarter){
+    clearTimeout(autoTimer);
+    board=Array(9).fill(null);
+    over=false;
+    cells.forEach(c=>{c.innerHTML='';c.className='';});
+    if(forcedStarter)starter=forcedStarter;
+    else starter=starter==='X'?'O':'X';
+    turn=starter;
+    setStatus();
+    if(mode==='cpu'&&turn==='O')autoTimer=setTimeout(cpuMove,500);
+  }
+
+  function setStatus(msg,big){
+    statusEl.className='status'+(big?' big':'');
+    if(msg!==undefined){statusEl.textContent=msg;return}
+    if(mode==='cpu')
+      statusEl.textContent=turn==='X'?`Your turn, ${playerName}! ${combo.x}`:'Computer is thinking… 🤔';
+    else if(mode==='2p')
+      statusEl.textContent=turn==='X'?`${combo.x} Player 1's turn`:`${combo.o} Player 2's turn`;
+    else // online
+      statusEl.textContent=turn===myMark
+        ?`Your turn, ${playerName}! ${turn==='X'?combo.x:combo.o}`
+        :`Waiting for ${oppName}… ${turn==='X'?combo.x:combo.o}`;
+  }
+
+  function humanMove(i){
+    if(over||board[i])return;
+    if(mode==='cpu'&&turn==='O')return;
+    if(mode==='online'){
+      if(turn!==myMark)return;
+      if(!conn||!conn.open)return;
+      conn.send({type:'move',i});
+    }
+    place(i,turn);
+    if(!over&&mode==='cpu')autoTimer=setTimeout(cpuMove,450);
+  }
+
+  function place(i,p){
+    board[i]=p;
+    cells[i].innerHTML=`<span>${p==='X'?combo.x:combo.o}</span>`;
+    cells[i].classList.add('pop');
+    const w=winner(board);
+    if(w){finish(w);return}
+    if(board.every(Boolean)){finish(null);return}
+    turn=p==='X'?'O':'X';
+    setStatus();
+  }
+
+  function finish(w){
+    over=true;
+    if(w){
+      scores[w.p]++;
+      w.line.forEach(i=>cells[i].classList.add('winner'));
+      confetti();
+      const winEmoji=w.p==='X'?combo.x:combo.o;
+      if(mode==='cpu')
+        setStatus(w.p==='X'?`🎉 You win, ${playerName}! ${winEmoji}`:`Computer wins! ${winEmoji} Try again!`,true);
+      else if(mode==='2p')
+        setStatus(`🎉 ${winEmoji} wins! Great game!`,true);
+      else
+        setStatus(w.p===myMark?`🎉 You win, ${playerName}! ${winEmoji}`:`${oppName} wins! ${winEmoji} Rematch!`,true);
+    }else{
+      scores.D++;
+      setStatus(`🤝 It's a tie! You're both great!`,true);
+    }
+    renderScores();
+    if(mode==='online'){
+      if(isHost){
+        autoTimer=setTimeout(()=>{
+          const next=starter==='X'?'O':'X';
+          if(conn&&conn.open)conn.send({type:'restart',starter:next});
+          newRound(next);
+        },3000);
+      }
+      // guest waits for host's restart message
+    }else{
+      autoTimer=setTimeout(()=>newRound(),3000);
+    }
+  }
+
+  function winner(b){
+    for(const line of LINES){
+      const[a,c,d]=line;
+      if(b[a]&&b[a]===b[c]&&b[a]===b[d])return{p:b[a],line};
+    }
+    return null;
+  }
+
+  /* ---------- friendly CPU ---------- */
+  function cpuMove(){
+    if(over||mode!=='cpu')return;
+    const empty=board.map((v,i)=>v?null:i).filter(v=>v!==null);
+    let i;
+    if(Math.random()<0.7)i=bestMove(board.slice(),'O');
+    else i=empty[Math.floor(Math.random()*empty.length)];
+    place(i,'O');
+  }
+  function bestMove(b,p){
+    let best=-Infinity,move=-1;
+    for(let i=0;i<9;i++){
+      if(b[i])continue;
+      b[i]=p;
+      const s=minimax(b,false,0);
+      b[i]=null;
+      if(s>best){best=s;move=i}
+    }
+    return move;
+  }
+  function minimax(b,isMax,depth){
+    const w=winner(b);
+    if(w)return w.p==='O'?10-depth:depth-10;
+    if(b.every(Boolean))return 0;
+    const p=isMax?'O':'X';
+    let best=isMax?-Infinity:Infinity;
+    for(let i=0;i<9;i++){
+      if(b[i])continue;
+      b[i]=p;
+      const s=minimax(b,!isMax,depth+1);
+      b[i]=null;
+      best=isMax?Math.max(best,s):Math.min(best,s);
+    }
+    return best;
+  }
+
+  /* ---------- modes ---------- */
+  const modeBtns={cpu:$('mode-cpu'),'2p':$('mode-2p'),online:$('mode-online')};
+  function setMode(m){
+    if(m!=='online')leaveOnline();
+    mode=m;
+    Object.entries(modeBtns).forEach(([k,b])=>b.classList.toggle('on',k===m));
+    $('online-badge').classList.toggle('hidden',m!=='online');
+    if(m==='online'){
+      show('screen-online');
+      $('online-menu').classList.remove('hidden');
+      $('online-wait').classList.add('hidden');
+    }else{
+      show('screen-game');
+      starter='O';
+      newRound();
+    }
+  }
+  modeBtns.cpu.addEventListener('click',()=>setMode('cpu'));
+  modeBtns['2p'].addEventListener('click',()=>setMode('2p'));
+  modeBtns.online.addEventListener('click',()=>setMode('online'));
+
+  /* ---------- ONLINE PLAY (PeerJS) ---------- */
+  const CODE_CHARS='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const codeToId=c=>'tttfun-room-'+c.toLowerCase();
+  function makeCode(){let s='';for(let k=0;k<5;k++)s+=CODE_CHARS[Math.floor(Math.random()*CODE_CHARS.length)];return s}
+
+  function peerReady(){
+    if(typeof Peer==='undefined'){
+      alert('Online play needs an internet connection. Please check your connection and try again!');
+      return false;
+    }
+    return true;
+  }
+
+  $('online-back-btn').addEventListener('click',()=>{leaveOnline();setMode('cpu')});
+  $('cancel-room-btn').addEventListener('click',()=>{
+    leaveOnline();
+    $('online-menu').classList.remove('hidden');
+    $('online-wait').classList.add('hidden');
+  });
+
+  $('create-room-btn').addEventListener('click',()=>{
+    if(!peerReady())return;
+    const code=makeCode();
+    isHost=true;myMark='X';
+    peer=new Peer(codeToId(code));
+    peer.on('open',()=>{
+      $('room-code-display').textContent=code;
+      $('online-menu').classList.add('hidden');
+      $('online-wait').classList.remove('hidden');
+      $('wait-msg').textContent='Waiting for your friend to join…';
+    });
+    peer.on('connection',c=>{
+      conn=c;
+      wireConnection();
+    });
+    peer.on('error',err=>{
+      if(err.type==='unavailable-id'){leaveOnline();alert('Oops, try creating the room again!');}
+      else if(err.type!=='peer-unavailable'){leaveOnline();alert('Connection problem. Please try again!');}
+      $('online-menu').classList.remove('hidden');
+      $('online-wait').classList.add('hidden');
+    });
+    $('share-btn').onclick=()=>{
+      const url=location.origin+location.pathname+'?join='+code;
+      const text=`🎈 Play Tic Tac Toe Fun with me! Room code: ${code}`;
+      if(navigator.share)navigator.share({title:'Tic Tac Toe Fun!',text,url}).catch(()=>{});
+      else if(navigator.clipboard){navigator.clipboard.writeText(text+' '+url);$('wait-msg').textContent='Invite copied! Paste it to your friend 📋';}
+    };
+  });
+
+  $('join-room-btn').addEventListener('click',joinRoom);
+  $('join-code-input').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom()});
+
+  function joinRoom(){
+    if(!peerReady())return;
+    const code=$('join-code-input').value.trim().toUpperCase();
+    if(code.length!==5){alert('Room codes are 5 letters — ask your friend for theirs!');return}
+    isHost=false;myMark='O';
+    $('online-menu').classList.add('hidden');
+    $('online-wait').classList.remove('hidden');
+    $('room-code-display').textContent=code;
+    $('wait-msg').textContent='Joining room…';
+    peer=new Peer();
+    peer.on('open',()=>{
+      conn=peer.connect(codeToId(code),{reliable:true});
+      wireConnection();
+    });
+    peer.on('error',err=>{
+      leaveOnline();
+      alert(err.type==='peer-unavailable'?'Room not found! Double-check the code with your friend.':'Connection problem. Please try again!');
+      setMode('online');
+    });
+  }
+
+  function wireConnection(){
+    conn.on('open',()=>{
+      conn.send({type:'hello',name:playerName,combo:combo.id});
+      if(isHost){
+        // host decides pieces & who starts
+        conn.send({type:'start',starter:'X',combo:combo.id,name:playerName});
+        beginOnlineGame('X');
+      }
+    });
+    conn.on('data',d=>{
+      if(!d||typeof d!=='object')return;
+      if(d.type==='hello'){
+        oppName=String(d.name||'Friend').slice(0,14);
+        $('online-badge').textContent=`🌐 Playing with ${oppName}`;
+      }
+      else if(d.type==='start'){
+        if(d.combo){const cb=COMBOS.find(c=>c.id===d.combo);if(cb){combo=cb;updateLabels();}}
+        if(d.name)oppName=String(d.name).slice(0,14);
+        $('online-badge').textContent=`🌐 Playing with ${oppName}`;
+        beginOnlineGame(d.starter||'X');
+      }
+      else if(d.type==='restart'){
+        newRound(d.starter||'X');
+      }
+      else if(d.type==='move'){
+        const i=+d.i;
+        if(Number.isInteger(i)&&i>=0&&i<9&&!board[i]&&!over&&turn!==myMark)place(i,turn);
+      }
+    });
+    conn.on('close',()=>{
+      if(mode==='online'){
+        setStatus(`${oppName} left the game 👋`,true);
+        clearTimeout(autoTimer);
+        autoTimer=setTimeout(()=>{leaveOnline();setMode('online')},2500);
+      }
+    });
+  }
+
+  function beginOnlineGame(st){
+    mode='online';
+    Object.entries(modeBtns).forEach(([k,b])=>b.classList.toggle('on',k==='online'));
+    $('online-badge').classList.remove('hidden');
+    scores={X:0,O:0,D:0};
+    updateLabels();renderScores();
+    show('screen-game');
+    newRound(st);
+  }
+
+  function leaveOnline(){
+    if(conn){try{conn.close()}catch(e){}conn=null}
+    if(peer){try{peer.destroy()}catch(e){}peer=null}
+    myMark=null;isHost=false;
+    $('online-badge').classList.add('hidden');
+  }
+
+  /* invite link: ?join=CODE */
+  try{
+    const m=location.search.match(/[?&]join=([A-Za-z0-9]{5})/);
+    if(m)pendingJoin=m[1].toUpperCase();
+  }catch(e){}
+
+  /* ---------- confetti ---------- */
+  const confEl=$('confetti');
+  const PIECES=['🎉','⭐','💖','🎈','✨','🌟'];
+  function confetti(){
+    for(let k=0;k<36;k++){
+      const s=document.createElement('span');
+      s.className='cf';
+      s.textContent=PIECES[Math.floor(Math.random()*PIECES.length)];
+      s.style.left=Math.random()*100+'vw';
+      s.style.animationDuration=(1.6+Math.random()*1.6)+'s';
+      s.style.animationDelay=(Math.random()*0.4)+'s';
+      confEl.appendChild(s);
+      setTimeout(()=>s.remove(),3600);
+    }
+  }
+})();
+
+/* ---------- PWA service worker ---------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
