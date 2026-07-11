@@ -147,7 +147,10 @@
 <div class="screen" id="screen-game">
   <div class="topbar">
     <div class="hello" id="hello"></div>
-    <button class="btn small ghost" id="back-btn">🎨 Change</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn small ghost" id="mute-btn" aria-label="Sound on or off">🔊</button>
+      <button class="btn small ghost" id="back-btn">🎨 Change</button>
+    </div>
   </div>
   <div class="online-badge hidden" id="online-badge"></div>
   <div class="scores">
@@ -168,6 +171,51 @@
 
 <script>
 (function(){
+  /* ---------- sound engine (Web Audio, no files needed) ---------- */
+  const SFX=(function(){
+    let ctx=null,muted=false,musicOn=false,loopTimer=null;
+    function ac(){
+      if(!ctx){try{const AC=window.AudioContext||window.webkitAudioContext;if(AC)ctx=new AC()}catch(e){}}
+      if(ctx&&ctx.state==='suspended'){try{ctx.resume()}catch(e){}}
+      return ctx;
+    }
+    function tone(f,t0,dur,type,vol){
+      const c=ctx;if(!c)return;
+      const o=c.createOscillator(),g=c.createGain();
+      o.type=type||'triangle';o.frequency.value=f;
+      g.gain.setValueAtTime(vol||.15,t0);
+      g.gain.exponentialRampToValueAtTime(.001,t0+dur);
+      o.connect(g);g.connect(c.destination);
+      o.start(t0);o.stop(t0+dur+.02);
+    }
+    function tap(p){if(muted)return;const c=ac();if(!c)return;
+      tone(p==='X'?659.25:493.88,c.currentTime,.09,'square',.1)}
+    function win(){if(muted)return;const c=ac();if(!c)return;
+      [523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,c.currentTime+i*.12,.28,'triangle',.16))}
+    function drawS(){if(muted)return;const c=ac();if(!c)return;
+      tone(392,c.currentTime,.18,'sine',.1);tone(329.63,c.currentTime+.2,.3,'sine',.1)}
+    /* cheerful looping background melody (C-major pentatonic) */
+    const MEL=[523.25,587.33,659.25,783.99,659.25,587.33,523.25,392,440,523.25,587.33,659.25,587.33,523.25,440,392];
+    const BASS=[261.63,196,220,196];
+    const STEP=.34;
+    function loop(){
+      if(muted||!musicOn)return;
+      const c=ac();if(!c)return;
+      const t0=c.currentTime+.05;
+      MEL.forEach((f,i)=>tone(f,t0+i*STEP,.3,'triangle',.04));
+      BASS.forEach((f,i)=>tone(f,t0+i*STEP*4,STEP*3.6,'sine',.05));
+      loopTimer=setTimeout(loop,(MEL.length*STEP-.1)*1000);
+    }
+    function startMusic(){if(musicOn)return;musicOn=true;if(!muted)loop()}
+    function stopMusic(){musicOn=false;clearTimeout(loopTimer)}
+    function toggleMute(){muted=!muted;clearTimeout(loopTimer);if(!muted&&musicOn)loop();return muted}
+    if(document.addEventListener)document.addEventListener('visibilitychange',()=>{
+      if(document.hidden)clearTimeout(loopTimer);
+      else if(musicOn&&!muted)loop();
+    });
+    return{tap,win,drawS,startMusic,stopMusic,toggleMute};
+  })();
+
   /* ---------- data ---------- */
   const THEMES=[
     {id:'candy',label:'🍭 Candy'},
@@ -229,6 +277,7 @@
   $('back-btn').addEventListener('click',()=>{
     clearTimeout(autoTimer);
     leaveOnline();
+    SFX.stopMusic();
     show('screen-login');
   });
 
@@ -240,6 +289,7 @@
   function startGame(){
     const v=$('name-input').value.trim();
     playerName=v||'Friend';
+    SFX.startMusic();
     $('hello').textContent=`Hi, ${playerName}! 👋`;
     scores={X:0,O:0,D:0};
     updateLabels();renderScores();
@@ -316,6 +366,7 @@
 
   function place(i,p){
     board[i]=p;
+    SFX.tap(p);
     cells[i].innerHTML=`<span>${p==='X'?combo.x:combo.o}</span>`;
     cells[i].classList.add('pop');
     const w=winner(board);
@@ -331,6 +382,7 @@
       scores[w.p]++;
       w.line.forEach(i=>cells[i].classList.add('winner'));
       confetti();
+      SFX.win();
       const winEmoji=w.p==='X'?combo.x:combo.o;
       if(mode==='cpu')
         setStatus(w.p==='X'?`🎉 You win, ${playerName}! ${winEmoji}`:`Computer wins! ${winEmoji} Try again!`,true);
@@ -340,6 +392,7 @@
         setStatus(w.p===myMark?`🎉 You win, ${playerName}! ${winEmoji}`:`${oppName} wins! ${winEmoji} Rematch!`,true);
     }else{
       scores.D++;
+      SFX.drawS();
       setStatus(`🤝 It's a tie! You're both great!`,true);
     }
     renderScores();
@@ -549,6 +602,10 @@
     myMark=null;isHost=false;
     $('online-badge').classList.add('hidden');
   }
+
+  $('mute-btn').addEventListener('click',()=>{
+    $('mute-btn').textContent=SFX.toggleMute()?'🔇':'🔊';
+  });
 
   /* invite link: ?join=CODE */
   try{

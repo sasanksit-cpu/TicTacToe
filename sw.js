@@ -1,5 +1,5 @@
 /* Tic Tac Toe Fun! — service worker for offline play */
-const CACHE = 'ttt-fun-v2';
+const CACHE = 'ttt-fun-v3';
 const ASSETS = [
   './',
   './index.html',
