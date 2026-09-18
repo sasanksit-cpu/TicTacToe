@@ -81,9 +81,21 @@ class MainActivity : ComponentActivity() {
                         }
 
                         OutlinedButton(onClick = {
-                            startActivity(Intent(this@MainActivity, GameActivity::class.java))
+                            startActivity(
+                                Intent(this@MainActivity, GameActivity::class.java)
+                                    .putExtra(GameActivity.EXTRA_MODE, GameActivity.MODE_ONE_PLAYER)
+                            )
                         }) {
-                            Text("Play tic-tac-toe now")
+                            Text("Play vs Computer")
+                        }
+
+                        OutlinedButton(onClick = {
+                            startActivity(
+                                Intent(this@MainActivity, GameActivity::class.java)
+                                    .putExtra(GameActivity.EXTRA_MODE, GameActivity.MODE_TWO_PLAYER)
+                            )
+                        }) {
+                            Text("Play 2 Players")
                         }
                     }
                 }

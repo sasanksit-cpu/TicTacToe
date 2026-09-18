@@ -16,9 +16,14 @@ class GameActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         showOverLockScreenIfNeeded()
         hideSystemBars()
+        val mode = if (intent.getStringExtra(EXTRA_MODE) == MODE_TWO_PLAYER) {
+            GameMode.TWO_PLAYER
+        } else {
+            GameMode.ONE_PLAYER
+        }
         setContent {
             LockTacToeTheme {
-                GameScreen(onExit = { finish() })
+                GameScreen(mode = mode, onExit = { finish() })
             }
         }
     }
@@ -42,5 +47,11 @@ class GameActivity : ComponentActivity() {
         controller.hide(WindowInsetsCompat.Type.systemBars())
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+    }
+
+    companion object {
+        const val EXTRA_MODE = "mode"
+        const val MODE_ONE_PLAYER = "one_player"
+        const val MODE_TWO_PLAYER = "two_player"
     }
 }

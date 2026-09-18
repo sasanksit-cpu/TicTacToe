@@ -74,7 +74,12 @@ class LockScreenActivity : ComponentActivity() {
                 LockScreenContent(
                     time = time,
                     date = date,
-                    onPlay = { startActivity(Intent(this@LockScreenActivity, GameActivity::class.java)) },
+                    onPlay = { mode ->
+                        startActivity(
+                            Intent(this@LockScreenActivity, GameActivity::class.java)
+                                .putExtra(GameActivity.EXTRA_MODE, mode)
+                        )
+                    },
                     onDismiss = { finish() }
                 )
             }
@@ -89,7 +94,7 @@ class LockScreenActivity : ComponentActivity() {
 private fun LockScreenContent(
     time: String,
     date: String,
-    onPlay: () -> Unit,
+    onPlay: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -104,8 +109,12 @@ private fun LockScreenContent(
         Spacer(Modifier.height(8.dp))
         Text(date, color = Color.Gray, fontSize = 18.sp)
         Spacer(Modifier.weight(1f))
-        Button(onClick = onPlay) {
-            Text("▶ Play Tic Tac Toe")
+        Button(onClick = { onPlay(GameActivity.MODE_ONE_PLAYER) }) {
+            Text("🤖 1 Player")
+        }
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = { onPlay(GameActivity.MODE_TWO_PLAYER) }) {
+            Text("👫 2 Players")
         }
         Spacer(Modifier.height(24.dp))
         Text(

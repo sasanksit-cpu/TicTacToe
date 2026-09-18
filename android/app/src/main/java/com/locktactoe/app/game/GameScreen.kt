@@ -33,26 +33,39 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 
-/** Fullscreen, fully offline tic-tac-toe: human (X) vs. minimax CPU (O). */
+/** Which local opponent this round is played against. */
+enum class GameMode { ONE_PLAYER, TWO_PLAYER }
+
+/** Fullscreen, fully offline tic-tac-toe: either vs. a minimax CPU, or two players sharing the device. */
 @Composable
-fun GameScreen(onExit: () -> Unit) {
+fun GameScreen(mode: GameMode, onExit: () -> Unit) {
     BackHandler(onBack = onExit)
+
+    val vsCpu = mode == GameMode.ONE_PLAYER
+    val labelX = if (vsCpu) "You (X)" else "Player 1 (X)"
+    val labelO = if (vsCpu) "CPU (O)" else "Player 2 (O)"
 
     var board by remember { mutableStateOf(arrayOfNulls<Char>(9)) }
     var turn by remember { mutableStateOf('X') }
     var over by remember { mutableStateOf(false) }
-    var status by remember { mutableStateOf("Your turn") }
+    var status by remember { mutableStateOf(if (vsCpu) "Your turn" else "Player 1's turn") }
     var scoreX by remember { mutableIntStateOf(0) }
     var scoreO by remember { mutableIntStateOf(0) }
     var scoreD by remember { mutableIntStateOf(0) }
     var winLine by remember { mutableStateOf<IntArray?>(null) }
+
+    fun turnStatus() = when {
+        !vsCpu -> if (turn == 'X') "Player 1's turn" else "Player 2's turn"
+        turn == 'X' -> "Your turn"
+        else -> "Computer thinking…"
+    }
 
     fun newRound() {
         board = arrayOfNulls(9)
         winLine = null
         over = false
         turn = 'X'
-        status = "Your turn"
+        status = turnStatus()
     }
 
     fun finishRound(winner: WinResult?) {
@@ -60,7 +73,11 @@ fun GameScreen(onExit: () -> Unit) {
         if (winner != null) {
             winLine = winner.line
             if (winner.player == 'X') scoreX++ else scoreO++
-            status = if (winner.player == 'X') "You win!" else "Computer wins!"
+            status = when {
+                !vsCpu -> if (winner.player == 'X') "Player 1 wins!" else "Player 2 wins!"
+                winner.player == 'X' -> "You win!"
+                else -> "Computer wins!"
+            }
         } else {
             scoreD++
             status = "It's a tie!"
@@ -78,13 +95,13 @@ fun GameScreen(onExit: () -> Unit) {
             isBoardFull(board) -> finishRound(null)
             else -> {
                 turn = if (player == 'X') 'O' else 'X'
-                status = if (turn == 'X') "Your turn" else "Computer thinking…"
+                status = turnStatus()
             }
         }
     }
 
     LaunchedEffect(turn, over) {
-        if (!over && turn == 'O') {
+        if (vsCpu && !over && turn == 'O') {
             delay(450)
             val move = bestMove(board.copyOf(), 'O')
             if (move >= 0) place(move, 'O')
@@ -110,9 +127,9 @@ fun GameScreen(onExit: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            ScoreChip("You (X)", scoreX)
+            ScoreChip(labelX, scoreX)
             ScoreChip("Ties", scoreD)
-            ScoreChip("CPU (O)", scoreO)
+            ScoreChip(labelO, scoreO)
         }
         Spacer(Modifier.height(24.dp))
         Text(status, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Medium)
@@ -129,7 +146,9 @@ fun GameScreen(onExit: () -> Unit) {
                     modifier = Modifier
                         .size(94.dp)
                         .background(if (isWin) Color(0xFF2E7D32) else Color(0xFF1C1C1C))
-                        .clickable(enabled = !over && turn == 'X' && board[i] == null) { place(i, 'X') },
+                        .clickable(enabled = !over && board[i] == null && (!vsCpu || turn == 'X')) {
+                            place(i, turn)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
